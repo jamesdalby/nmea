@@ -1,0 +1,8 @@
+name: nmea
+description: NMEA0183 reader and decoder
+version: 0.0.1
+author: James Dalby
+homepage: github.com/jamesdalby/nmea
+
+environment:
+  sdk: ">=2.1.0 <3.0.0"
