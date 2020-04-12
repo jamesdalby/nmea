@@ -18,7 +18,7 @@ class Pos {
 }
 
 // parse and enqueue a message
-void _parseNMEA(final String data, final EventSink sink) {
+void _parseNMEA(final String data, final EventSink<NMEA> sink) {
   final NMEA ret = _sentence(data);
   if (ret != null) sink.add(ret);
 }
@@ -27,7 +27,7 @@ void _parseNMEA(final String data, final EventSink sink) {
 DateTime _utcFrom(final String s) {
   int ms = s.length > 7 ? int.tryParse(s.substring(7)) : 0;
   var dateTime = DateTime.now();
-  return new DateTime(
+  return new DateTime.utc(
       dateTime.year,
       dateTime.month,
       dateTime.day,
@@ -38,11 +38,28 @@ DateTime _utcFrom(final String s) {
   );
 }
 
+DateTime _utcFromDT(final String ds, final String ts) {
+  int ms = ts.length > 7 ? int.tryParse(ts.substring(7)) : 0;
+  return new DateTime.utc(
+      int.tryParse(ds.substring(4,6))+2000,
+      int.tryParse(ds.substring(2,4)),
+      int.tryParse(ds.substring(0,2)),
+      int.tryParse(ts.substring(0,2)),
+      int.tryParse(ts.substring(2,4)),
+      int.tryParse(ts.substring(4,6)),
+      ms
+  );
+}
+
+abstract class NMEAReader {
+  void process(void handleNMEA(var sentence)) async {}
+}
+
 /// NMEA source
-class NMEAReader {
+class NMEASocketReader implements NMEAReader {
 
   /// A reader that will connect to hostname and port
-  NMEAReader(this._hostname, this._portNum);
+  NMEASocketReader(this._hostname, this._portNum);
 
   /// time between reconnection attempts: 2 seconds
   static const Duration sec2 = Duration(seconds: 2);
@@ -111,6 +128,55 @@ class NMEAReader {
       }
     }
     Future.delayed(sec2, () => process(handleNMEA));
+  }
+}
+
+/// A reader that can read from an NMEA dump file
+/// 
+/// It inserts artificial delays to roughly match the timings of the messages
+/// based on utc within GGA messages.
+class NMEADummy implements NMEAReader {
+  Stream<String> _src;
+
+  NMEADummy(this._src);
+
+  NMEADummy.from(File file) : _src = utf8.decoder.bind(file.openRead());
+
+  void process(void handleNMEA(var sentence)) async
+  {
+    _src
+        .transform(new LineSplitter())
+        .transform(new StreamTransformer.fromHandlers(handleData: _parseNMEA))
+        .transform(StreamTransformer.fromHandlers(handleData: _maybeDelay))
+        .listen(handleNMEA);
+  }
+
+  DateTime _initTime;
+  DateTime _firstMsg;
+
+  void _maybeDelay(NMEA nmea, final EventSink sink) async {
+    if (_initTime == null) {
+      _initTime = DateTime.now();
+    }
+    DateTime t;
+    if (nmea is GGA) {
+      t = nmea.utc;
+    } /* else if (nmea is RMC) {
+      t = nmea.utc;
+    } else if (nmea is ZDA) {
+      t = nmea.utc;
+    }*/
+    if (_firstMsg == null) {
+      _firstMsg = t;
+    } else if (t != null) {
+        int b = t.difference(_firstMsg).inSeconds;
+        int a = DateTime.now().difference(_initTime).inSeconds;
+        
+        if (a<b) {
+          sleep(Duration(seconds: b-a));
+       }
+    }
+    sink.add(nmea);
   }
 }
 
@@ -457,7 +523,7 @@ class RMC extends NMEA {
   final String faaModeIndicator;
 
   RMC(final List<String> args) :
-        utc = _utcFrom(args[1]),
+        utc = _utcFromDT(args[9], args[1]),
         status = args[2] == 'V',
         position = Pos(_degFrom(args[3], args[4]), _degFrom(args[5], args[6]), _utcFrom(args[1])),
         sog = _d(args[7]),

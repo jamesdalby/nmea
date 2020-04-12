@@ -1,6 +1,8 @@
+import 'dart:io';
+
 import 'package:nmea/nmea.dart';
 
   void main(final List<String> args) {
-    NMEASocketReader nmea = new NMEASocketReader(args[0], int.parse(args[1]));
+    NMEAReader nmea = new NMEADummy.from(File(args[0]));
     nmea.process(print);
   }
