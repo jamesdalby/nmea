@@ -46,5 +46,5 @@ XDR,
 # Contributors
 
 If you wish to contribute to the code base, you'd be most welcome, please contact me
-through github [github.com/jamesdalby] in the first instance
+through github [https://github.com/jamesdalby] in the first instance
 
