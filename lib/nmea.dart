@@ -892,7 +892,7 @@ class MWV extends NMEA {
         super(args);
 
   double get windAngleToBow => windAngle > 180 ? 360-windAngle : windAngle;
-  String get tack => windAngle >= 180 ? 'P' : 'S';
+  String get tack => windAngle >= 180 ? 'Port' : 'Starboard';
 }
 
 // Waypoint location, not yet used?
