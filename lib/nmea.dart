@@ -27,7 +27,7 @@ void _parseNMEA(final String data, final EventSink<NMEA> sink) {
 DateTime _utcFrom(final String s) {
   int ms = s.length > 7 ? int.tryParse(s.substring(7)) : 0;
   var dateTime = DateTime.now();
-  return new DateTime.utc(
+  return DateTime.utc(
       dateTime.year,
       dateTime.month,
       dateTime.day,
@@ -40,7 +40,7 @@ DateTime _utcFrom(final String s) {
 
 DateTime _utcFromDT(final String ds, final String ts) {
   int ms = ts.length > 7 ? int.tryParse(ts.substring(7)) : 0;
-  return new DateTime.utc(
+  return DateTime.utc(
       int.tryParse(ds.substring(4,6))+2000,
       int.tryParse(ds.substring(2,4)),
       int.tryParse(ds.substring(0,2)),
@@ -110,8 +110,8 @@ class NMEASocketReader implements NMEAReader {
         print("Connected");
 
         utf8.decoder.bind(_socket)
-            .transform(new LineSplitter())
-            .transform(new StreamTransformer.fromHandlers(handleData: _parseNMEA))
+            .transform(LineSplitter())
+            .transform(StreamTransformer.fromHandlers(handleData: _parseNMEA))
             .listen(
               handleNMEA,
               onError: (err, stack) {
@@ -145,8 +145,8 @@ class NMEADummy implements NMEAReader {
   void process(void handleNMEA(var sentence)) async
   {
     _src
-        .transform(new LineSplitter())
-        .transform(new StreamTransformer.fromHandlers(handleData: _parseNMEA))
+        .transform(LineSplitter())
+        .transform(StreamTransformer.fromHandlers(handleData: _parseNMEA))
         .transform(StreamTransformer.fromHandlers(handleData: _maybeDelay))
         .listen(handleNMEA);
   }
@@ -276,6 +276,68 @@ class BOD extends NMEA {
   BOD(final List<String> args) : super(args);
 }
 
+
+/**
+BWC - Bearing & Distance to Waypoint - Great Circle
+                                                         12
+        1         2       3 4        5 6   7 8   9 10  11|    13 14
+        |         |       | |        | |   | |   | |   | |    |   |
+ $--BWC,hhmmss.ss,llll.ll,a,yyyyy.yy,a,x.x,T,x.x,M,x.x,N,c--c,m,*hh<CR><LF>
+Field Number:
+
+1 UTC Time or observation
+2 Waypoint Latitude
+3 N = North, S = South
+4 Waypoint Longitude
+5 E = East, W = West
+6 Bearing, degrees True
+7 T = True
+8 Bearing, degrees Magnetic
+9 M = Magnetic
+10 Distance, Nautical Miles
+11 N = Nautical Miles
+12 Waypoint ID
+13 FAA mode indicator (NMEA 2.3 and later, optional)
+14 Checksum
+ */
+class BWC extends NMEA {
+  final Pos wpt;
+  final double bearingTrue, bearingMag;
+  final double distance;
+  final String waypointID;
+
+  BWC(final List<String> args)
+      : wpt = Pos(
+            _degFrom(args[2], args[3]),
+            _degFrom(args[4], args[5]),
+            _utcFrom(args[1])),
+        bearingTrue = double.tryParse(args[6]),
+        bearingMag = double.tryParse(args[8]),
+        distance = double.tryParse(args[10]),
+        waypointID = args[12],
+        super(args);
+}
+
+/** Exactly the same spec as [BWC] */
+class BWR extends NMEA {
+  final Pos wpt;
+  final double bearingTrue, bearingMag;
+  final double distance;
+  final String waypointID;
+
+  BWR(final List<String> args)
+      : wpt = Pos(
+      _degFrom(args[2], args[3]),
+      _degFrom(args[4], args[5]),
+      _utcFrom(args[1])),
+        bearingTrue = double.tryParse(args[6]),
+        bearingMag = double.tryParse(args[8]),
+        distance = double.tryParse(args[10]),
+        waypointID = args[12],
+        super(args);
+}
+
+
 /*
 GGA - Global Positioning System Fix Data
 
@@ -326,7 +388,7 @@ class GGA extends NMEA implements Pos {
   final String differentialReferenceStation;
 
   GGA(final List<String> args) :
-        pos = new Pos(
+        pos = Pos(
             _degFrom(args[2], args[3]),
             _degFrom(args[4], args[5]),
             _utcFrom(args[1])
@@ -402,7 +464,7 @@ class GLL extends NMEA implements Pos {
   String get faaMode => _faaMode;
 
   GLL(final List<String> args) :
-        _pos = new Pos(
+        _pos = Pos(
             _degFrom(args[1], args[2]),
             _degFrom(args[3], args[4]),
             _utcFrom(args[5])
@@ -651,7 +713,7 @@ class ZDA extends NMEA {
   final DateTime utc;
 
   ZDA(final List<String> args)
-      : utc = new DateTime(
+      : utc = DateTime(
       int.tryParse(args[4]),
       int.tryParse(args[3]),
       int.tryParse(args[2]),
@@ -925,34 +987,36 @@ NMEA _sentence(String event) {
   s[s.length-1] = split[1];
 
   switch (sentence) {
-    case r'VDM': return new VDM(s);
-    case r'AAM': return new AAM(s);
-    case r'APB': return new APB(s);
-    case r'BOD': return new BOD(s);
-    case r'GGA': return new GGA(s);
-    case r'GLL': return new GLL(s);
-    case r'GLC': return new GLC(s);
-    case r'GSA': return new GSA(s);
-    case r'GSV': return new GSV(s);
-    case r'RMB': return new RMB(s);
-    case r'RMC': return new RMC(s);
-    case r'VTG': return new VTG(s);
-    case r'XTE': return new XTE(s);
-    case r'ZDA': return new ZDA(s);
-    case r'XDR': return new XDR(s);
-    case r'DBT': return new DBT(s);
-    case r'DPT': return new DPT(s);
-    case r'DBK': return new DBK(s);
-    case r'DBS': return new DBS(s);
-    case r'HDG': return new HDG(s);
-    case r'HDT': return new HDT(s);
-    case r'MTW': return new MTW(s);
-    case r'VHW': return new VHW(s);
-    case r'VLW': return new VLW(s);
-    case r'MWD': return new MWD(s);
-    case r'MWV': return new MWV(s);
-    case r'VDO': return new VDO(s);
-    case r'WPL': return new WPL(s);
+    case r'VDM': return VDM(s);
+    case r'AAM': return AAM(s);
+    case r'APB': return APB(s);
+    case r'BOD': return BOD(s);
+    case r'BWR': return BWR(s);
+    case r'BWC': return BWC(s);
+    case r'GGA': return GGA(s);
+    case r'GLL': return GLL(s);
+    case r'GLC': return GLC(s);
+    case r'GSA': return GSA(s);
+    case r'GSV': return GSV(s);
+    case r'RMB': return RMB(s);
+    case r'RMC': return RMC(s);
+    case r'VTG': return VTG(s);
+    case r'XTE': return XTE(s);
+    case r'ZDA': return ZDA(s);
+    case r'XDR': return XDR(s);
+    case r'DBT': return DBT(s);
+    case r'DPT': return DPT(s);
+    case r'DBK': return DBK(s);
+    case r'DBS': return DBS(s);
+    case r'HDG': return HDG(s);
+    case r'HDT': return HDT(s);
+    case r'MTW': return MTW(s);
+    case r'VHW': return VHW(s);
+    case r'VLW': return VLW(s);
+    case r'MWD': return MWD(s);
+    case r'MWV': return MWV(s);
+    case r'VDO': return VDO(s);
+    case r'WPL': return WPL(s);
 
 
     default:
