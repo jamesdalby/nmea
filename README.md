@@ -41,7 +41,7 @@ XDR,
 * [https://github.com/jamesdalby/ais] for AIS VDM/VDO decoding
 * [https://gpsd.gitlab.io/gpsd/NMEA.html] NMEA protocol information
 * [https://github.com/jamesdalby/jamais] an AIS display application
-* [https://github.com/jamesdalby/kanaivis] an application for blind and visually impaired sailors that speak alound various boat data
+* [https://github.com/jamesdalby/kanivis] an application for blind and visually impaired sailors that speak aloud various boat data
 
 # Contributors
 

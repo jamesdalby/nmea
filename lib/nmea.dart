@@ -10,43 +10,43 @@ import 'dart:convert';
 
 /// Representation of a position, dated
 class Pos {
-  final double lat, lng;
-  final DateTime utc;
+  final double? lat, lng;
+  final DateTime? utc;
 
   const Pos(this.lat, this.lng, this.utc);
-  @override String toString() => "($lat, $lng) $utc";
+  @override String toString() => "(${lat??'?'}, ${lng??'?'}) "+(utc?.toString()??'');
 }
 
 // parse and enqueue a message
 void _parseNMEA(final String data, final EventSink<NMEA> sink) {
-  final NMEA ret = _sentence(data);
+  final NMEA? ret = _sentence(data);
   if (ret != null) sink.add(ret);
 }
 
 // mangle a test time as received from bus into DateTime
 DateTime _utcFrom(final String s) {
-  int ms = s.length > 7 ? int.tryParse(s.substring(7)) : 0;
+  int ms = s.length > 7 ? int.parse(s.substring(7)) : 0;
   var dateTime = DateTime.now();
   return DateTime.utc(
       dateTime.year,
       dateTime.month,
       dateTime.day,
-      int.tryParse(s.substring(0,2)),
-      int.tryParse(s.substring(2,4)),
-      int.tryParse(s.substring(4,6)),
+      int.tryParse(s.substring(0,2))??0,
+      int.tryParse(s.substring(2,4))??0,
+      int.tryParse(s.substring(4,6))??0,
       ms
   );
 }
 
 DateTime _utcFromDT(final String ds, final String ts) {
-  int ms = ts.length > 7 ? int.tryParse(ts.substring(7)) : 0;
+  int ms = ts.length > 7 ? (int.tryParse(ts.substring(7))??0) : 0;
   return DateTime.utc(
-      int.tryParse(ds.substring(4,6))+2000,
-      int.tryParse(ds.substring(2,4)),
-      int.tryParse(ds.substring(0,2)),
-      int.tryParse(ts.substring(0,2)),
-      int.tryParse(ts.substring(2,4)),
-      int.tryParse(ts.substring(4,6)),
+      int.parse(ds.substring(4,6))+2000,
+      int.parse(ds.substring(2,4)),
+      int.parse(ds.substring(0,2)),
+      int.parse(ts.substring(0,2)),
+      int.parse(ts.substring(2,4)),
+      int.parse(ts.substring(4,6)),
       ms
   );
 }
@@ -72,7 +72,7 @@ class NMEASocketReader implements NMEAReader {
     bool close = _hostname != h;
     _hostname = h;
     if (close) {
-      _socket?.close();
+      _socket.close();
     }
   }
 
@@ -81,7 +81,7 @@ class NMEASocketReader implements NMEAReader {
     bool close = _portNum != p;
     _portNum = p;
     if (close) {
-      _socket?.close();
+      _socket.close();
     }
   }
 
@@ -91,7 +91,7 @@ class NMEASocketReader implements NMEAReader {
   /// Current port number
   int get port => _portNum;
 
-  Socket _socket;
+  late Socket _socket;
 
   /// socket for connections.  Use this judiciously, i.e not at all!
   Socket get socket => _socket;
@@ -103,30 +103,30 @@ class NMEASocketReader implements NMEAReader {
   /// state.  There is a 2 second sleep before any reconnection attempt.
   void process(void handleNMEA(var sentence)) async
   {
-    if (_hostname != null && _portNum != null) {
-      print("Attempting to connect $_hostname:$_portNum");
-      try {
-        _socket = await Socket.connect(_hostname, _portNum);
-        print("Connected");
 
-        utf8.decoder.bind(_socket)
-            .transform(LineSplitter())
-            .transform(StreamTransformer.fromHandlers(handleData: _parseNMEA))
-            .listen(
-              handleNMEA,
-              onError: (err, stack) {
-                print("Communication error: $err\n$stack");
-              },
-              onDone: () {
-                print("Disconnected (Peer), attempt reconnect in 2 secs");
-                Future.delayed(sec2, () => process(handleNMEA));
-              }
-            );
-        return;
-      } catch (err) {
-        print("Connection failed, try again in 2 seconds $err");
-      }
+    print("Attempting to connect $_hostname:$_portNum");
+    try {
+      _socket = await Socket.connect(_hostname, _portNum);
+      print("Connected");
+
+      utf8.decoder.bind(_socket)
+          .transform(LineSplitter())
+          .transform(StreamTransformer.fromHandlers(handleData: _parseNMEA))
+          .listen(
+          handleNMEA,
+          onError: (err, stack) {
+            print("Communication error: $err\n$stack");
+          },
+          onDone: () {
+            print("Disconnected (Peer), attempt reconnect in 2 secs");
+            Future.delayed(sec2, () => process(handleNMEA));
+          }
+      );
+      return;
+    } catch (err) {
+      print("Connection failed, try again in 2 seconds $err");
     }
+
     Future.delayed(sec2, () => process(handleNMEA));
   }
 }
@@ -151,14 +151,14 @@ class NMEADummy implements NMEAReader {
         .listen(handleNMEA);
   }
 
-  DateTime _initTime;
-  DateTime _firstMsg;
+  DateTime? _initTime;
+  DateTime? _firstMsg;
 
   void _maybeDelay(NMEA nmea, final EventSink sink) async {
     if (_initTime == null) {
       _initTime = DateTime.now();
     }
-    DateTime t;
+    DateTime? t;
     if (nmea is GGA) {
       t = nmea.utc;
     } /* else if (nmea is RMC) {
@@ -169,8 +169,8 @@ class NMEADummy implements NMEAReader {
     if (_firstMsg == null) {
       _firstMsg = t;
     } else if (t != null) {
-        int b = t.difference(_firstMsg).inSeconds;
-        int a = DateTime.now().difference(_initTime).inSeconds;
+        int b = t.difference(_firstMsg!).inSeconds;
+        int a = DateTime.now().difference(_initTime!).inSeconds;
         
         if (a<b) {
           sleep(Duration(seconds: b-a));
@@ -190,7 +190,7 @@ abstract class NMEA {
   NMEA(this.s) :
         type = s[0].substring(0, 1),
         talkerID = s[0].substring(1, 3),
-        checksum = int.tryParse(s[s.length - 1], radix: 16);
+        checksum = int.parse(s[s.length - 1], radix: 16);
 
   @override String toString() {
     return "$type $talkerID $checksum $s";
@@ -208,8 +208,8 @@ class VDbase extends NMEA {
   final String payload;
 
   VDbase(final List<String> args) :
-        fragments = int.tryParse(args[1]),
-        fragment = int.tryParse(args[2]),
+        fragments = int.parse(args[1]),
+        fragment = int.parse(args[2]),
         msgID = args[3],
         radioChannel = args[4],
         payload = args[5],
@@ -277,9 +277,9 @@ class BOD extends NMEA {
 }
 
 
-/**
-BWC - Bearing & Distance to Waypoint - Great Circle
-                                                         12
+
+/// BWC - Bearing & Distance to Waypoint - Great Circle
+/*                                                       12
         1         2       3 4        5 6   7 8   9 10  11|    13 14
         |         |       | |        | |   | |   | |   | |    |   |
  $--BWC,hhmmss.ss,llll.ll,a,yyyyy.yy,a,x.x,T,x.x,M,x.x,N,c--c,m,*hh<CR><LF>
@@ -311,14 +311,14 @@ class BWC extends NMEA {
             _degFrom(args[2], args[3]),
             _degFrom(args[4], args[5]),
             _utcFrom(args[1])),
-        bearingTrue = double.tryParse(args[6]),
-        bearingMag = double.tryParse(args[8]),
-        distance = double.tryParse(args[10]),
+        bearingTrue = double.parse(args[6]),
+        bearingMag = double.parse(args[8]),
+        distance = double.parse(args[10]),
         waypointID = args[12],
         super(args);
 }
 
-/** Exactly the same spec as [BWC] */
+/// Exactly the same spec as [BWC]
 class BWR extends NMEA {
   final Pos wpt;
   final double bearingTrue, bearingMag;
@@ -330,9 +330,9 @@ class BWR extends NMEA {
       _degFrom(args[2], args[3]),
       _degFrom(args[4], args[5]),
       _utcFrom(args[1])),
-        bearingTrue = double.tryParse(args[6]),
-        bearingMag = double.tryParse(args[8]),
-        distance = double.tryParse(args[10]),
+        bearingTrue = double.parse(args[6]),
+        bearingMag = double.parse(args[8]),
+        distance = double.parse(args[10]),
         waypointID = args[12],
         super(args);
 }
@@ -377,14 +377,14 @@ Field Number:
 */
 class GGA extends NMEA implements Pos {
   final Pos pos;
-  final int qual;
-  final int numSats;
-  final double horizontalDilution;
-  final double antennaAltitude;
+  final int? qual;
+  final int? numSats;
+  final double? horizontalDilution;
+  final double? antennaAltitude;
   final String antennaAltitudeUnits;
-  final double geoidalSeparation;
+  final double? geoidalSeparation;
   final String geoidalSeparationUnits;
-  final double ageOfDifferentialGPS;
+  final double? ageOfDifferentialGPS;
   final String differentialReferenceStation;
 
   GGA(final List<String> args) :
@@ -411,18 +411,18 @@ class GGA extends NMEA implements Pos {
   }
 
   // delegates
-  @override double get lat => pos.lat;
-  @override double get lng => pos.lng;
-  @override DateTime get utc => pos.utc;
+  @override double? get lat => pos.lat;
+  @override double? get lng => pos.lng;
+  @override DateTime? get utc => pos.utc;
 }
 
-double _d(String s, [double dflt]) {
-  if (s == null) { return dflt; }
-  return double.tryParse(s);
+double? _d(String s, [double? dflt]) {
+  // if (s == null) { return dflt; }
+  return double.tryParse(s)??dflt;
 }
 
-_degFrom(final String d, final String nsew) {
-  if (d == null || d.length == 0 || nsew == null || nsew.length != 1) {
+double? _degFrom(final String d, final String nsew) {
+  if (d.length == 0 || nsew.length != 1) {
     return null;
   }
   double dd = double.parse(d);
@@ -460,8 +460,8 @@ class GLL extends NMEA implements Pos {
   bool _valid;
   bool get valid => _valid;
 
-  String _faaMode;
-  String get faaMode => _faaMode;
+  String? _faaMode;
+  String? get faaMode => _faaMode;
 
   GLL(final List<String> args) :
         _pos = Pos(
@@ -477,9 +477,9 @@ class GLL extends NMEA implements Pos {
     return super.toString() + "\n => $_pos";
   }
   // delegates
-  @override double get lat => _pos.lat;
-  @override double get lng => _pos.lng;
-  @override DateTime get utc => _pos.utc;
+  @override double? get lat => _pos.lat;
+  @override double? get lng => _pos.lng;
+  @override DateTime? get utc => _pos.utc;
 }
 
 // Loran C - obsolete
@@ -527,15 +527,15 @@ class GSV extends NMEA {
 */
 class RMB extends NMEA {
   final bool status;
-  final double crossTrackError;
+  final double? crossTrackError;
   final String directionToSteer; // 'L' or 'R'
   final String originWaypointID;
   final String destinationWaypointID;
   final Pos destinationWaypoint;
-  final double rangeToDestination;
-  final double bearingToDestination; // deg, true
-  final double destinationClosingVelocity;
-  final bool arrivalCircleEntered;
+  final double? rangeToDestination;
+  final double? bearingToDestination; // deg, true
+  final double? destinationClosingVelocity;
+  final bool? arrivalCircleEntered;
   final String faaModeIndicator;
 
   RMB(final List<String> args) :
@@ -578,10 +578,10 @@ class RMC extends NMEA {
   final DateTime utc;
   final bool status;
   final Pos position;
-  final double sog;
-  final double trackMadeGood;
+  final double? sog;
+  final double? trackMadeGood;
   final String dddmmyy;
-  final double magneticVariation;
+  final double? magneticVariation;
   final String faaModeIndicator;
 
   RMC(final List<String> args) :
@@ -633,8 +633,8 @@ class RMC extends NMEA {
     The two forms can be distinguished by field 2, which will be the fixed text 'T' in the newer form. The new form appears to have been introduced with NMEA 3.01 in 2002.
  */
 class VTG extends NMEA {
-  final double cogTrue, cogMagnetic, sog, sogkmh;
-  final String faaModeIndicator;
+  final double? cogTrue, cogMagnetic, sog, sogkmh;
+  final String? faaModeIndicator;
 
   factory VTG (final List<String> args) {
     return args[2] == 'T' ? VTG._new(args) : VTG._old(args);
@@ -682,7 +682,7 @@ class VTG extends NMEA {
  */
 class XTE extends NMEA {
   final List<String> status;
-  final double crossTrackError;
+  final double? crossTrackError;
   final String directionToSteer;
 
   XTE(final List<String> args) :
@@ -714,12 +714,12 @@ class ZDA extends NMEA {
 
   ZDA(final List<String> args)
       : utc = DateTime(
-      int.tryParse(args[4]),
-      int.tryParse(args[3]),
-      int.tryParse(args[2]),
-      int.tryParse(args[1].substring(0, 2)),
-      int.tryParse(args[1].substring(2, 4)),
-      int.tryParse(args[1].substring(4, 6))
+      int.parse(args[4]),
+      int.parse(args[3]),
+      int.parse(args[2]),
+      int.tryParse(args[1].substring(0, 2))??0,
+      int.tryParse(args[1].substring(2, 4))??0,
+      int.tryParse(args[1].substring(4, 6))??0 // actually a double? secs and fractions of a second
   ),
         super (args);
 }
@@ -744,12 +744,12 @@ class XDR extends NMEA {
 /// 6 F = Fathoms
 /// 7 Checksum
 class DBT extends NMEA {
-  double feet, metres, fathoms;
+  double? feet, metres, fathoms;
 
   DBT(final List<String> args) :
         feet = _d(args[1]),
         metres = _d(args[3]),
-        fathoms = _d(args[4]),
+        fathoms = _d(args[5]),
         super(args);
 }
 
@@ -771,7 +771,7 @@ class DBT extends NMEA {
 // However, if the offset is given as 0.-7, that means -0.7
 
 class DPT extends NMEA {
-  final double depthTransducer;
+  final double? depthTransducer;
   final double offset;
   DPT(final List<String> args) :
         depthTransducer = _d(args[1]),
@@ -780,17 +780,17 @@ class DPT extends NMEA {
 
   static double _dx(String v) {
     if (v.startsWith("0.-")) {
-      return double.tryParse("-0." + v.substring(3));
+      return double.tryParse("-0." + v.substring(3))??0;
     }
-    return double.tryParse(v.replaceFirst("\.-", "."));
+    return double.tryParse(v.replaceFirst("\.-", "."))??0;
   }
 
-  double get depthSurface => offset > 0 ? depthTransducer+offset : null;
-  double get depthKeel => offset < 0 ? depthTransducer+offset : null;
+  double? get depthSurface => depthTransducer== null ? null : offset > 0 ? depthTransducer!+offset : null;
+  double? get depthKeel => depthTransducer== null ? null : offset < 0 ? depthTransducer!+offset : null;
 }
 
 class DBK extends NMEA {
-  final double depthKeel;
+  final double? depthKeel;
 
   DBK(final List<String> args) :
         depthKeel = _d(args[1]),
@@ -798,7 +798,7 @@ class DBK extends NMEA {
 }
 
 class DBS extends NMEA {
-  final double depthSurface;
+  final double? depthSurface;
 
   DBS(final List<String> args) :
         depthSurface = _d(args[1]),
@@ -817,7 +817,8 @@ class DBS extends NMEA {
 /// 4. Magnetic Variation degrees
 /// 5. Magnetic Variation direction, E = Easterly, W = Westerly
 class HDG extends NMEA {
-  final double heading, deviation, variation;
+  final double? heading;
+  double deviation, variation;
 
   HDG(final List<String> args) :
         heading = _d(args[1]),
@@ -826,27 +827,27 @@ class HDG extends NMEA {
         super(args);
 
   @override String toString() {
-    return heading.toStringAsFixed(1) + "° " + super.toString();
+    return heading == null ? 'Unknown' : heading!.toStringAsFixed(1) + "° " + super.toString();
   }
 
-  static double _deg(String d, String ew) {
-    double r = _d(d);
+  static double? _deg(String d, String ew) {
+    double? r = _d(d);
     if (r == null) { return null; }
     return r * (ew == "W" ? -1 : 1);
   }
-  double get trueHeading => heading + deviation + variation;
+  double? get trueHeading => heading == null ? null : (heading! + deviation + variation);
 }
 
 // true heading
 class HDT extends NMEA {
-  final double heading;
+  final double? heading;
 
   HDT(final List<String> args) :
         heading = _d(args[1]),
         super(args);
 
   @override String toString() {
-    return heading.toStringAsFixed(1) + "° " + super.toString();
+    return heading == null ? 'Unknown' : (heading!.toStringAsFixed(1) + "° " + super.toString());
   }
 }
 
@@ -871,7 +872,7 @@ class MTW extends NMEA {
 /// 9 Checksum
 
 class VHW extends NMEA {
-  final double headingTrue, headingMagnetic, boatspeedKnots, boatSpeedKmh;
+  final double? headingTrue, headingMagnetic, boatspeedKnots, boatSpeedKmh;
 
   VHW(final List<String> args) :
         headingTrue = _d(args[1]),
@@ -896,7 +897,7 @@ class VHW extends NMEA {
 /// 8. N = Nautical Miles (NMEA 3 and above)
 /// 9. Checksum
 class VLW extends NMEA {
-  double cumulativeDistance, resetDistance, cumulativeGroundDistance, resetGroundDistance;
+  double? cumulativeDistance, resetDistance, cumulativeGroundDistance, resetGroundDistance;
   VLW(final List<String> args) :
         cumulativeDistance = _d(args[1]),
         resetDistance = _d(args[3]),
@@ -921,7 +922,7 @@ class VLW extends NMEA {
 /// 9 Status, A = Data Valid, V = Invalid
 /// 10 Checksum
 class MWD extends NMEA {
-  final double trueWindDirection, trueWindSpeedKnots;
+  final double? trueWindDirection, trueWindSpeedKnots;
   MWD(final List<String> args) :
         trueWindDirection = _d(args[1]),
         trueWindSpeedKnots = _d(args[5]),
@@ -945,7 +946,7 @@ class MWD extends NMEA {
 // and these are indeed 0..360, not 'from the bow, hence the 'windAngleToBow' getter.
 
 class MWV extends NMEA {
-  final double windAngle, windSpeed;
+  final double? windAngle, windSpeed;
   final bool isTrue;
   MWV(final List<String> args) :
         windAngle = _d(args[1]),
@@ -953,8 +954,8 @@ class MWV extends NMEA {
         isTrue = ('T' == args[2]),
         super(args);
 
-  double get windAngleToBow => windAngle > 180 ? 360-windAngle : windAngle;
-  String get tack => windAngle >= 180 ? 'Port' : 'Starboard';
+  double? get windAngleToBow => windAngle ?? (windAngle! > 180 ? 360-windAngle! : windAngle);
+  String? get tack => windAngle == null ? null : (windAngle! >= 180 ? 'Port' : 'Starboard') ;
 }
 
 // Waypoint location, not yet used?
@@ -968,7 +969,7 @@ Set<String> _seen = Set();
 
 // Accepts a raw string, and attempts a basic parse of the message
 // then selectively constructs a derivative class of NMEA from it representing the specific message type.
-NMEA _sentence(String event) {
+NMEA? _sentence(String event) {
   List<String> s = event.split(",");
   if (s.length == 0 || s[0].length <= 3) {
     print("Sentence error: " + event);
@@ -982,9 +983,9 @@ NMEA _sentence(String event) {
 
   // separate last field from checksum
   var split = s[s.length-1].split("*");
-  ++s.length;
-  s[s.length-2] = split[0];
-  s[s.length-1] = split[1];
+
+  s[s.length-1] = split[0];
+  s.add(split[1]);
 
   switch (sentence) {
     case r'VDM': return VDM(s);
@@ -1033,7 +1034,7 @@ NMEA _sentence(String event) {
 // It is the 8-bit XOR of all characters in the sentence, excluding the "$", "I", or "*" characters;
 // but including all "," and "^". It is encoded as two hexadecimal characters (0-9, A-F), the most-significant-nibble being sent first.
 bool invalidChecksum(final String event) {
-  int expect = int.tryParse(event.substring(event.length-2), radix:16);
+  int? expect = int.tryParse(event.substring(event.length-2), radix:16);
   int got = checksum(event);
   if (got != expect) {
     // print("BAD [${got.toRadixString(16)}][${expect.toRadixString(16)}][$event]");
