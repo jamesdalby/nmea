@@ -10,11 +10,11 @@ import 'dart:convert';
 
 /// Representation of a position, dated
 class Pos {
-  final double? lat, lng;
-  final DateTime? utc;
+  final double lat, lng;
+  final DateTime utc;
 
   const Pos(this.lat, this.lng, this.utc);
-  @override String toString() => "(${lat??'?'}, ${lng??'?'}) "+(utc?.toString()??'');
+  @override String toString() => "($lat, $lng) "+utc.toString();
 }
 
 // parse and enqueue a message
@@ -411,19 +411,19 @@ class GGA extends NMEA implements Pos {
   }
 
   // delegates
-  @override double? get lat => pos.lat;
-  @override double? get lng => pos.lng;
-  @override DateTime? get utc => pos.utc;
+  @override double get lat => pos.lat;
+  @override double get lng => pos.lng;
+  @override DateTime get utc => pos.utc;
 }
 
-double? _d(String s, [double? dflt]) {
+double _d(String s, [double dflt = 0]) {
   // if (s == null) { return dflt; }
   return double.tryParse(s)??dflt;
 }
 
-double? _degFrom(final String d, final String nsew) {
+double _degFrom(final String d, final String nsew) {
   if (d.length == 0 || nsew.length != 1) {
-    return null;
+    throw "invalid data";
   }
   double dd = double.parse(d);
   int deg = dd ~/ 100;
@@ -477,9 +477,9 @@ class GLL extends NMEA implements Pos {
     return super.toString() + "\n => $_pos";
   }
   // delegates
-  @override double? get lat => _pos.lat;
-  @override double? get lng => _pos.lng;
-  @override DateTime? get utc => _pos.utc;
+  @override double get lat => _pos.lat;
+  @override double get lng => _pos.lng;
+  @override DateTime get utc => _pos.utc;
 }
 
 // Loran C - obsolete
@@ -544,7 +544,7 @@ class RMB extends NMEA {
         directionToSteer = args[3],
         originWaypointID = args[4],
         destinationWaypointID = args[5],
-        destinationWaypoint = Pos(_degFrom(args[6], args[7]), _degFrom(args[8], args[9]), null),
+        destinationWaypoint = Pos(_degFrom(args[6], args[7]), _degFrom(args[8], args[9]), DateTime.now()), // why now?
         rangeToDestination = _d(args[10]),
         bearingToDestination = _d(args[11]),
         destinationClosingVelocity = _d(args[12]),
