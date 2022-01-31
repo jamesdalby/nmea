@@ -377,14 +377,14 @@ Field Number:
 */
 class GGA extends NMEA implements Pos {
   final Pos pos;
-  final int? qual;
-  final int? numSats;
-  final double? horizontalDilution;
-  final double? antennaAltitude;
+  final int qual;
+  final int numSats;
+  final double horizontalDilution;
+  final double antennaAltitude;
   final String antennaAltitudeUnits;
-  final double? geoidalSeparation;
+  final double geoidalSeparation;
   final String geoidalSeparationUnits;
-  final double? ageOfDifferentialGPS;
+  final double ageOfDifferentialGPS;
   final String differentialReferenceStation;
 
   GGA(final List<String> args) :
@@ -393,12 +393,12 @@ class GGA extends NMEA implements Pos {
             _degFrom(args[4], args[5]),
             _utcFrom(args[1])
         ),
-        qual = int.tryParse(args[6]),
-        numSats = int.tryParse(args[7]),
-        horizontalDilution = double.tryParse(args[8]),
-        antennaAltitude = double.tryParse(args[9]),
+        qual = int.tryParse(args[6])??0,
+        numSats = int.tryParse(args[7])??0,
+        horizontalDilution = double.tryParse(args[8])??0,
+        antennaAltitude = double.tryParse(args[9])??0,
         antennaAltitudeUnits = args[10],
-        geoidalSeparation = double.tryParse(args[9]),
+        geoidalSeparation = double.tryParse(args[9])??0,
         geoidalSeparationUnits = args[10],
         ageOfDifferentialGPS = _d(args[11]),
         differentialReferenceStation = args[12],
@@ -460,8 +460,8 @@ class GLL extends NMEA implements Pos {
   bool _valid;
   bool get valid => _valid;
 
-  String? _faaMode;
-  String? get faaMode => _faaMode;
+  String _faaMode;
+  String get faaMode => _faaMode;
 
   GLL(final List<String> args) :
         _pos = Pos(
@@ -470,7 +470,7 @@ class GLL extends NMEA implements Pos {
             _utcFrom(args[5])
         ),
         _valid = args[6] == "A",
-        _faaMode = args.length > 7 ? args[7] : null,
+        _faaMode = args.length > 7 ? args[7] : '',
         super(args);
 
   @override String toString() {
@@ -527,14 +527,14 @@ class GSV extends NMEA {
 */
 class RMB extends NMEA {
   final bool status;
-  final double? crossTrackError;
+  final double crossTrackError;
   final String directionToSteer; // 'L' or 'R'
   final String originWaypointID;
   final String destinationWaypointID;
   final Pos destinationWaypoint;
-  final double? rangeToDestination;
-  final double? bearingToDestination; // deg, true
-  final double? destinationClosingVelocity;
+  final double rangeToDestination;
+  final double bearingToDestination; // deg, true
+  final double destinationClosingVelocity;
   final bool? arrivalCircleEntered;
   final String faaModeIndicator;
 
@@ -578,10 +578,10 @@ class RMC extends NMEA {
   final DateTime utc;
   final bool status;
   final Pos position;
-  final double? sog;
-  final double? trackMadeGood;
+  final double sog;
+  final double trackMadeGood;
   final String dddmmyy;
-  final double? magneticVariation;
+  final double magneticVariation;
   final String faaModeIndicator;
 
   RMC(final List<String> args) :
@@ -633,7 +633,7 @@ class RMC extends NMEA {
     The two forms can be distinguished by field 2, which will be the fixed text 'T' in the newer form. The new form appears to have been introduced with NMEA 3.01 in 2002.
  */
 class VTG extends NMEA {
-  final double? cogTrue, cogMagnetic, sog, sogkmh;
+  final double cogTrue, cogMagnetic, sog, sogkmh;
   final String? faaModeIndicator;
 
   factory VTG (final List<String> args) {
@@ -682,7 +682,7 @@ class VTG extends NMEA {
  */
 class XTE extends NMEA {
   final List<String> status;
-  final double? crossTrackError;
+  final double crossTrackError;
   final String directionToSteer;
 
   XTE(final List<String> args) :
@@ -822,17 +822,16 @@ class HDG extends NMEA {
 
   HDG(final List<String> args) :
         heading = _d(args[1]),
-        deviation = _deg(args[2], args[3])??0,
-        variation = _deg(args[4], args[5])??0,
+        deviation = _deg(args[2], args[3]),
+        variation = _deg(args[4], args[5]),
         super(args);
 
   @override String toString() {
     return heading == null ? 'Unknown' : heading!.toStringAsFixed(1) + "° " + super.toString();
   }
 
-  static double? _deg(String d, String ew) {
-    double? r = _d(d);
-    if (r == null) { return null; }
+  static double _deg(String d, String ew) {
+    double r = _d(d);
     return r * (ew == "W" ? -1 : 1);
   }
   double? get trueHeading => heading == null ? null : (heading! + deviation + variation);
