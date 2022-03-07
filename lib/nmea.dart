@@ -19,8 +19,12 @@ class Pos {
 
 // parse and enqueue a message
 void _parseNMEA(final String data, final EventSink<NMEA> sink) {
-  final NMEA? ret = _sentence(data);
-  if (ret != null) sink.add(ret);
+  try {
+    final NMEA? ret = _sentence(data);
+    if (ret != null) sink.add(ret);
+  } catch (err) {
+    print("Can't parse as NMEA: $data");
+  }
 }
 
 // mangle a test time as received from bus into DateTime
