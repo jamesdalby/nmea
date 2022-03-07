@@ -58,14 +58,33 @@ abstract class NMEAReader {
 /// NMEA source
 class NMEASocketReader implements NMEAReader {
 
+  void Function(NMEA) _handleNMEA;
+
   /// A reader that will connect to hostname and port
-  NMEASocketReader(this._hostname, this._portNum);
+  NMEASocketReader(this._hostname, this._portNum, this._handleNMEA);
+
+  /// If active, the reader will repeatedly attempt to reconnect
+  bool _active = true;
 
   /// time between reconnection attempts: 2 seconds
   static const Duration sec2 = Duration(seconds: 2);
 
   String _hostname;
   int _portNum;
+
+  set active(bool b) {
+    if (_active == b) {
+      // no change:
+      return;
+    }
+    if (_active = b) {
+      // invoke process to trigger re-opening the socket:
+      process(_handleNMEA);
+    } else {
+      _socket.close();
+    }
+
+  }
 
   /// Set a new hostname, which (if changed) will drop the current connection (if any) and reconnect
   set hostname(h) {
@@ -101,8 +120,11 @@ class NMEASocketReader implements NMEAReader {
   /// This method will attempt to connect repeatedly to the source, and reconnect if the connection is lost
   /// If the hostname/port are invalid, it'll continue to attempt to connect, to cope with things like changing network
   /// state.  There is a 2 second sleep before any reconnection attempt.
-  void process(void handleNMEA(var sentence)) async
+  void process(void handleNMEA(NMEA sentence)) async
   {
+    if (!_active) {
+      return;
+    }
 
     print("Attempting to connect $_hostname:$_portNum");
     try {
@@ -130,6 +152,7 @@ class NMEASocketReader implements NMEAReader {
     Future.delayed(sec2, () => process(handleNMEA));
   }
 }
+
 
 /// A reader that can read from an NMEA dump file
 /// 
