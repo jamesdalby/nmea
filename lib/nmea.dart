@@ -51,12 +51,8 @@ DateTime _utcFromDT(final String ds, final String ts) {
   );
 }
 
-abstract class NMEAReader {
-  void process(void handleNMEA(var sentence)) async {}
-}
-
 /// NMEA source
-class NMEASocketReader implements NMEAReader {
+class NMEASocketReader {
 
   void Function(NMEA) _handleNMEA;
 
@@ -79,7 +75,7 @@ class NMEASocketReader implements NMEAReader {
     }
     if (_active = b) {
       // invoke process to trigger re-opening the socket:
-      process(_handleNMEA);
+      process();
     } else {
       _socket.close();
     }
@@ -120,7 +116,7 @@ class NMEASocketReader implements NMEAReader {
   /// This method will attempt to connect repeatedly to the source, and reconnect if the connection is lost
   /// If the hostname/port are invalid, it'll continue to attempt to connect, to cope with things like changing network
   /// state.  There is a 2 second sleep before any reconnection attempt.
-  void process(void handleNMEA(NMEA sentence)) async
+  void process() async
   {
     if (!_active) {
       return;
@@ -135,13 +131,13 @@ class NMEASocketReader implements NMEAReader {
           .transform(LineSplitter())
           .transform(StreamTransformer.fromHandlers(handleData: _parseNMEA))
           .listen(
-          handleNMEA,
+          _handleNMEA,
           onError: (err, stack) {
             print("Communication error: $err\n$stack");
           },
           onDone: () {
             print("Disconnected (Peer), attempt reconnect in 2 secs");
-            Future.delayed(sec2, () => process(handleNMEA));
+            Future.delayed(sec2, () => process());
           }
       );
       return;
@@ -149,57 +145,7 @@ class NMEASocketReader implements NMEAReader {
       print("Connection failed, try again in 2 seconds $err");
     }
 
-    Future.delayed(sec2, () => process(handleNMEA));
-  }
-}
-
-
-/// A reader that can read from an NMEA dump file
-/// 
-/// It inserts artificial delays to roughly match the timings of the messages
-/// based on utc within GGA messages.
-class NMEADummy implements NMEAReader {
-  Stream<String> _src;
-
-  NMEADummy(this._src);
-
-  NMEADummy.from(File file) : _src = utf8.decoder.bind(file.openRead());
-
-  void process(void handleNMEA(var sentence)) async
-  {
-    _src
-        .transform(LineSplitter())
-        .transform(StreamTransformer.fromHandlers(handleData: _parseNMEA))
-        .transform(StreamTransformer.fromHandlers(handleData: _maybeDelay))
-        .listen(handleNMEA);
-  }
-
-  DateTime? _initTime;
-  DateTime? _firstMsg;
-
-  void _maybeDelay(NMEA nmea, final EventSink sink) async {
-    if (_initTime == null) {
-      _initTime = DateTime.now();
-    }
-    DateTime? t;
-    if (nmea is GGA) {
-      t = nmea.utc;
-    } /* else if (nmea is RMC) {
-      t = nmea.utc;
-    } else if (nmea is ZDA) {
-      t = nmea.utc;
-    }*/
-    if (_firstMsg == null) {
-      _firstMsg = t;
-    } else if (t != null) {
-        int b = t.difference(_firstMsg!).inSeconds;
-        int a = DateTime.now().difference(_initTime!).inSeconds;
-        
-        if (a<b) {
-          sleep(Duration(seconds: b-a));
-       }
-    }
-    sink.add(nmea);
+    Future.delayed(sec2, () => process());
   }
 }
 
