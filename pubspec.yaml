@@ -1,6 +1,6 @@
 name: nmea
 description: NMEA0183 reader and decoder
-version: 0.0.8
+version: 0.0.9
 homepage: github.com/jamesdalby/nmea
 
 environment:
