@@ -926,7 +926,7 @@ class MWV extends NMEA {
         isTrue = ('T' == args[2]),
         super(args);
 
-  double? get windAngleToBow => windAngle ?? (windAngle! > 180 ? 360-windAngle! : windAngle);
+  double? get windAngleToBow => windAngle == null ? null : (windAngle! > 180 ? 360-windAngle! : windAngle);
   String? get tack => windAngle == null ? null : (windAngle! >= 180 ? 'Port' : 'Starboard') ;
 }
 
