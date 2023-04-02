@@ -81,7 +81,7 @@ class NMEASocketReader {
       // invoke process to trigger re-opening the socket:
       process();
     } else {
-      _socket.close();
+      _socket?.close();
     }
 
   }
@@ -91,7 +91,7 @@ class NMEASocketReader {
     bool close = _hostname != h;
     _hostname = h;
     if (close) {
-      _socket.close();
+      _socket?.close();
     }
   }
 
@@ -100,7 +100,7 @@ class NMEASocketReader {
     bool close = _portNum != p;
     _portNum = p;
     if (close) {
-      _socket.close();
+      _socket?.close();
     }
   }
 
@@ -110,10 +110,10 @@ class NMEASocketReader {
   /// Current port number
   int get port => _portNum;
 
-  late Socket _socket;
+  Socket? _socket;
 
   /// socket for connections.  Use this judiciously, i.e not at all!
-  Socket get socket => _socket;
+  Socket? get socket => _socket;
 
   /// Initiate a connection and process arriving messages using the given handler `handleNMEA`
   ///
@@ -128,10 +128,10 @@ class NMEASocketReader {
 
     print("Attempting to connect $_hostname:$_portNum");
     try {
-      _socket = await Socket.connect(_hostname, _portNum);
+      _socket = await Socket.connect(_hostname, _portNum); // can legitimately throw SocketException
       print("Connected");
 
-      utf8.decoder.bind(_socket)
+      utf8.decoder.bind(_socket!)
           .transform(LineSplitter())
           .transform(StreamTransformer.fromHandlers(handleData: _parseNMEA))
           .listen(
