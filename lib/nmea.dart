@@ -179,6 +179,7 @@ class VDbase extends NMEA {
   final String msgID;
   final String radioChannel;
   final String payload;
+  final int pad;
 
   VDbase(final List<String> args) :
         fragments = int.parse(args[1]),
@@ -186,6 +187,7 @@ class VDbase extends NMEA {
         msgID = args[3],
         radioChannel = args[4],
         payload = args[5],
+        pad = int.parse(args[6]),
         super(args);
 }
 
