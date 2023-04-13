@@ -23,7 +23,7 @@ void _parseNMEA(final String data, final EventSink<NMEA> sink) {
     final NMEA? ret = _sentence(data);
     if (ret != null) sink.add(ret);
   } catch (err) {
-    print("Can't parse as NMEA: $data");
+    print("Can't parse as NMEA: $data [$err]");
   }
 }
 
@@ -398,7 +398,7 @@ double _d(String s, [double dflt = 0]) {
 
 double _degFrom(final String d, final String nsew) {
   if (d.length == 0 || nsew.length != 1) {
-    throw "invalid data";
+    throw "invalid data (convert to degrees)";
   }
   double dd = double.parse(d);
   int deg = dd ~/ 100;
